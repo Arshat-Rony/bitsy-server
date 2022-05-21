@@ -5,6 +5,7 @@ require('dotenv').config();
 const ObjectId = require('mongodb').ObjectId;
 const jwt = require('jsonwebtoken');
 const res = require('express/lib/response');
+const stripe = require("stripe")('sk_test_51L0mirGh3CcvB5xEdCI8pIWwPt5HdL6rr2YCrSGb2ycw75tFkzXmfk5NVeLbIciAkWzFm82OtoKge9zi7p66StwR003iNIvzNQ')
 const app = express()
 const port = process.env.PORT || 5000;
 
@@ -97,6 +98,27 @@ async function run() {
 
 
 
+        // send client secret for paymnent of any card 
+        app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+            const product = req.body;
+            const price = parseInt(product.price || 1)
+            const amount = price * 100;
+            //  create paymentIntent with the order amount and currency
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: "usd",
+                payment_method_types: ['card']
+            });
+
+            if (paymentIntent.client_secret) {
+                res.send({
+                    clientSecret: paymentIntent.client_secret,
+                })
+            }
+        })
+
+
+
 
         // add product to the database
         app.post("/products", async (req, res) => {
@@ -135,7 +157,13 @@ async function run() {
         })
 
 
-
+        // get a single product
+        app.get("/product/:id", async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) }
+            const result = await productCollection.findOne(query)
+            res.send(result)
+        })
 
 
         // delet the addedProduct
